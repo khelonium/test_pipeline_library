@@ -1,0 +1,112 @@
+apply plugin: 'groovy'
+
+sourceSets {
+    main {
+        groovy {
+            srcDirs = ['src']
+        }
+    }
+    test {
+        groovy {
+            srcDirs = ['test']
+        }
+    }
+}
+
+repositories {
+    maven {
+        url 'https://repo.jenkins-ci.org/public/'
+    }
+}
+
+configurations {
+    testPlugins {}
+}
+
+dependencies {
+    compile 'org.codehaus.groovy:groovy-all:2.4.5'
+    compile 'com.cloudbees:groovy-cps:1.12'
+    compile 'org.jenkins-ci.plugins.workflow:workflow-cps:2.29'
+
+    // junit
+    testCompile 'junit:junit:4.12'
+
+    // Jenkins test harness dependencies
+    testCompile 'org.jenkins-ci.main:jenkins-test-harness:2.8'
+    testCompile "org.jenkins-ci.main:jenkins-war:1.651"
+    testCompile "org.jenkins-ci.main:jenkins-war:1.651:war-for-test@jar"
+
+    // Job DSL plugin including plugin dependencies
+    testCompile 'org.jenkins-ci.plugins:structs:1.2@jar'
+    testCompile 'org.jenkins-ci.plugins:cloudbees-folder:5.0@jar'
+
+    // plugins to install in test instance
+    testPlugins 'org.jenkins-ci.plugins:ghprb:1.31.4'
+    testPlugins 'com.coravy.hudson.plugins.github:github:1.19.0'
+    testPlugins 'org.jenkins-ci.plugins:cloudbees-folder:5.0'
+
+
+    testCompile 'org.jenkins-ci.plugins.workflow:workflow-job:2.9@jar'
+    testCompile 'org.jenkins-ci.plugins.workflow:workflow-api:2.12@jar'
+    testCompile 'org.jenkins-ci.plugins.workflow:workflow-step-api:2.7@jar'
+    testCompile 'org.jenkins-ci.plugins.workflow:workflow-cps:2.27@jar'
+    testCompile 'org.jenkins-ci.plugins:scm-api:2.1.1@jar'
+    testCompile 'org.jenkins-ci.plugins:scm-api:2.1.1:tests@jar'
+    testCompile 'org.jenkins-ci.plugins.workflow:workflow-support:2.13@jar'
+    testCompile 'org.jenkins-ci.plugins.workflow:workflow-support:2.13:tests@jar'
+    testCompile 'org.jenkins-ci.plugins.workflow:workflow-scm-step:2.4@jar'
+    testCompile 'org.jenkins-ci.plugins.workflow:workflow-basic-steps:2.4@jar'
+    testCompile 'org.jenkins-ci.plugins.workflow:workflow-durable-task-step:2.10@jar'
+    testCompile 'org.jenkins-ci.plugins.workflow:workflow-cps-global-lib:2.7@jar'
+
+    testCompile 'org.jenkins-ci.plugins:credentials:2.1.13@jar'
+    testCompile 'org.jenkins-ci.plugins:script-security:1.27@jar'
+
+    testCompile 'org.jenkins-ci.plugins:git:3.2.0@jar'
+    testCompile 'org.jenkins-ci.plugins:git:3.2.0:tests@jar'
+    testCompile 'org.jenkins-ci.plugins:git-server:1.7@jar'
+    testCompile 'org.jenkins-ci.plugins:git-client:1.19.7@jar'
+    testCompile 'org.jenkins-ci.plugins:durable-task:1.13@jar'
+    testCompile 'org.jenkins-ci.plugins:mailer:1.20@jar'
+    testCompile 'org.jenkins-ci.plugins:ssh-credentials:1.13@jar'
+    testCompile 'org.jenkins-ci.plugins:matrix-project:1.9@jar'
+    testCompile 'org.jenkins-ci.plugins:junit:1.20@jar'
+
+
+
+    testCompile 'org.eclipse.jgit:org.eclipse.jgit:4.5.1.201703201650-r'
+    testCompile 'org.eclipse.jgit:org.eclipse.jgit.http.server:4.5.1.201703201650-r'
+    testCompile 'joda-time:joda-time:2.9.9'
+    testCompile 'org.antlr:antlr4-runtime:4.3'
+    testCompile 'org.apache.ivy:ivy:2.4.0'
+
+
+}
+
+task resolveTestPlugins(type: Copy) {
+    from configurations.testPlugins
+    into new File(sourceSets.test.output.resourcesDir, 'test-dependencies')
+    include '*.hpi'
+    include '*.jpi'
+    def mapping = [:]
+
+    doFirst {
+        configurations.testPlugins.resolvedConfiguration.resolvedArtifacts.each {
+            mapping[it.file.name] = "${it.name}.${it.extension}"
+        }
+    }
+    rename { mapping[it] }
+
+    doLast {
+        List<String> baseNames = source*.name.collect { mapping[it] }.collect { it[0..it.lastIndexOf('.') - 1] }
+        new File(destinationDir, 'index').setText(baseNames.join('\n'), 'UTF-8')
+    }
+}
+
+test {
+    dependsOn tasks.resolveTestPlugins
+    //inputs.files sourceSets.jobs.groovy.srcDirs
+
+    // set build directory for Jenkins test harness, JENKINS-26331
+    systemProperty 'buildDirectory', project.buildDir.absolutePath
+}
