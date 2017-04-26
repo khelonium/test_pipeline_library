@@ -11,8 +11,14 @@ class Utilities implements Serializable {
     }
 
     def foo(){
-        steps.bat "echo first"
-        steps.bat "echo two"
+        if (steps.isUnix()) {
+            steps.sh "echo first"
+            steps.sh "echo two"
+        }
+        else{ 
+            steps.bat "echo first"
+            steps.bat "echo two"
+        }
     }
 
 }
